@@ -178,13 +178,11 @@ impl NeuralNetwork {
 
         let network_outputs = self.feed_forward(inputs);
 
-        let errors: Vec<f64> = network_outputs
+        let total_error = network_outputs
             .iter()
             .zip(outputs)
             .map(|(guess, actual)| error(&guess.get_value(), actual))
-            .collect();
-
-        let total_error: f64 = errors.iter().sum();
+            .sum();
 
         let last_layer = &network_outputs;
         let previous_layer = &self.layers[self.layers.len() - 2];
