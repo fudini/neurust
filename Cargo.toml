@@ -1,0 +1,8 @@
+[package]
+name = "neurust"
+version = "0.1.0"
+authors = ["Daniel Fudala <fudimi@gmail.com>"]
+
+[dependencies]
+rand = "0.3.15"
+time = "0.1.36"
