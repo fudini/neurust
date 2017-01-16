@@ -220,8 +220,6 @@ impl NeuralNetwork {
 
             for current_index in 0..current_layer.len() {
 
-                let out_error = 0.0;
-
                 let out_error = output_layer
                     .iter()
                     .fold(0.0, |err, output_neuron| {
