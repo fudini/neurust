@@ -166,7 +166,12 @@ impl NeuralNetwork {
     }
 
     pub fn get_activations(&self) -> Vec<f64> {
-        self.layers.last().unwrap().iter().map(|neuron| neuron.get_value()).collect::<Vec<f64>>()
+        
+        self.layers.last()
+            .unwrap()
+            .iter()
+            .map(|neuron| neuron.get_value())
+            .collect::<Vec<f64>>()
     }
 
     pub fn train(&self, inputs: &Vec<f64>, outputs: &Vec<f64>) -> f64 {
