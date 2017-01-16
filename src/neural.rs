@@ -166,7 +166,7 @@ impl NeuralNetwork {
     }
 
     pub fn get_activations(&self) -> Vec<f64> {
-        
+
         self.layers.last()
             .unwrap()
             .iter()
@@ -204,11 +204,11 @@ impl NeuralNetwork {
                 let new_weight = output_neuron.borrow().weights[weight_index]
                     - self.learning_rate * weight_delta;
 
-                let mut output_neuron_borrowed = output_neuron.borrow_mut();
+                let mut output_neuron = output_neuron.borrow_mut();
 
-                output_neuron_borrowed.new_weights[weight_index] = new_weight;
-                output_neuron_borrowed.error = output_error;
-                output_neuron_borrowed.derivative = output_derivative;
+                output_neuron.new_weights[weight_index] = new_weight;
+                output_neuron.error = output_error;
+                output_neuron.derivative = output_derivative;
 
             }
         }
