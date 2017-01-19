@@ -63,17 +63,20 @@ fn run_mnist() {
 
         nn.learning_rate *= 0.98;
 
-        let mut num_predicted = 0;
+        let num_predicted = testing_set.images.iter()
+            .fold(0, |num, image| {
+                
+                nn.feed_forward(&image.pixels);
 
-        for image in testing_set.images.iter().take(10000) {
-            
-            nn.feed_forward(&image.pixels);
+                if outputs_to_digit(&nn.get_outputs()) == Some(image.digit as usize) {
+                    num + 1
+                } else {
+                    num
+                }
+            });
 
-            if outputs_to_digit(&nn.get_outputs()) == Some(image.digit as usize) {
-                num_predicted += 1;
-            }
-        }
         println!("Predicted: {:?}", num_predicted);
+        println!("");
 
     }
 
