@@ -9,12 +9,17 @@ fn activate(x: f64) -> f64 {
     1.0 / (1.0 + E.powf(-x))
 }
 
-fn error(guess: &f64, actual: &f64) -> f64 {
+fn error(guess: f64, actual: f64) -> f64 {
     (guess - actual).powf(2.0) / 2.0
 }
 
 fn derivative(o: f64) -> f64 {
+    let o = activate(o);
     o * (1.0 - o)
+}
+
+fn error_derivative(guess: f64, actual: f64) -> f64 {
+    guess - actual
 }
 
 #[derive(Debug)]
@@ -22,9 +27,10 @@ pub struct Neuron {
     weights: Vec<f64>,
     new_weights: Vec<f64>,
     bias: f64,
-    error: f64,
-    activation: f64,
-    derivative: f64
+    total_input: f64,
+    input_der: f64,
+    output_der: f64,
+    output: f64
 }
 
 pub trait NeuralValue {
@@ -33,7 +39,7 @@ pub trait NeuralValue {
 
 impl NeuralValue for RefCell<Neuron> {
     fn get_value(&self) -> f64 {
-        self.borrow().activation
+        self.borrow().output
     }
 }
 
@@ -51,10 +57,10 @@ impl Neuron {
 
         let weights: Vec<f64> = (0..inputs_num)
             .into_iter()
-            .map(|_| rng.gen::<f64>())
+            .map(|_| rng.gen::<f64>() - 0.5)
             .collect();
 
-        Neuron::with_weights(weights, rng.gen::<f64>() * 2.0 - 1.0)
+        Neuron::with_weights(weights, 0.1)
     }
 
     // number of weights per neuron has to be the same as number of neurons
@@ -65,9 +71,10 @@ impl Neuron {
 
         Neuron {
             bias: bias,
-            error: 0f64,
-            activation: 0f64,
-            derivative: 0f64,
+            total_input: 0f64,
+            input_der: 0f64,
+            output_der: 0f64,
+            output: 0f64,
             weights: weights,
             new_weights: new_weights,
         }
@@ -76,13 +83,14 @@ impl Neuron {
     pub fn feed_forward<T>(&mut self, inputs: &Vec<T>)
         where T: NeuralValue {
 
-        let sum: f64 = self.weights
+        let total_input: f64 = self.weights
             .iter()
             .zip(inputs.iter().map(|input_value| input_value.get_value()))
             .map(|(weight, input)| weight * input)
             .sum();
-
-        self.activation = activate(sum + self.bias);
+            
+        self.total_input = total_input + self.bias;
+        self.output = activate(self.total_input);
     }
 
     pub fn swap_weights(&mut self) {
@@ -122,7 +130,7 @@ impl NeuralNetwork {
 
     pub fn with_layers(layers: Vec<Vec<RefCell<Neuron>>>, learning_rate: f64) -> NeuralNetwork {
 
-        if layers.len() < 3 {
+        if layers.len() < 2 {
             panic!("Your network should have at least 1 input, hidden and output layers.");
         }
 
@@ -165,7 +173,7 @@ impl NeuralNetwork {
         }
     }
 
-    pub fn get_activations(&self) -> Vec<f64> {
+    pub fn get_outputs(&self) -> Vec<f64> {
 
         self.layers.last()
             .unwrap()
@@ -178,69 +186,113 @@ impl NeuralNetwork {
 
         let network_outputs = self.feed_forward(inputs);
 
-        let total_error = network_outputs
-            .iter()
-            .zip(outputs)
-            .map(|(guess, actual)| error(&guess.get_value(), actual))
-            .sum();
-
         let last_layer = &network_outputs;
-        let previous_layer = &self.layers[self.layers.len() - 2];
+
+        let mut total_error = 0.0;
 
         for output_index in 0..last_layer.len() {
 
-            let output_neuron = &network_outputs[output_index];
-            let activation = output_neuron.get_value();
-            let output_derivative = derivative(activation);
-            let output_error = activation - outputs[output_index];
-
-            for weight_index in 0..previous_layer.len() {
-
-                let weight_activation = previous_layer[weight_index].get_value();
-                let weight_delta = output_error * output_derivative * weight_activation;
-
-                let new_weight = output_neuron.borrow().weights[weight_index]
-                    - self.learning_rate * weight_delta;
-
-                let mut output_neuron = output_neuron.borrow_mut();
-
-                output_neuron.new_weights[weight_index] = new_weight;
-                output_neuron.error = output_error;
-                output_neuron.derivative = output_derivative;
-
-            }
+            let mut output_neuron = network_outputs[output_index].borrow_mut();
+            total_error += error(output_neuron.output, outputs[output_index]);           
+            output_neuron.output_der = error_derivative(output_neuron.output, outputs[output_index]);
         }
 
-        for index in (1..self.layers.len()).rev() {
+        for index in (0..self.layers.len()).rev() {
 
-            let current_layer = &self.layers[index - 1];
-            let output_layer = &self.layers[index];
+            let current_layer = &self.layers[index];
 
             for current_index in 0..current_layer.len() {
 
-                let out_error = output_layer
-                    .iter()
-                    .fold(0.0, |err, output_neuron| {
-                        let output_neuron = &output_neuron.borrow();
-                        let output_error = output_neuron.derivative * output_neuron.error;
-                        let output_d = output_error * output_neuron.weights[current_index];
-                        err + output_d
-                    });
-
                 let mut current_neuron = current_layer[current_index].borrow_mut();
-                current_neuron.error = out_error;
-                current_neuron.derivative = derivative(current_neuron.activation);
+                current_neuron.input_der = current_neuron.output_der * derivative(current_neuron.total_input);;
 
-                for weight_index in 0..inputs.len() {
+                if index >= 1 {
 
-                    let something = out_error * current_neuron.derivative * inputs[weight_index];
-                    current_neuron.new_weights[weight_index] = current_neuron.weights[weight_index] - (self.learning_rate * something);
+                    for weight_index in 0..current_neuron.weights.len() {
+
+                        let weight = current_neuron.weights[weight_index];
+                        let output = self.layers[index - 1][weight_index].get_value();
+                        let error_der = current_neuron.input_der * output;
+                        current_neuron.new_weights[weight_index] = weight - self.learning_rate * error_der;
+
+                    }
+                } else {
+
+                    for weight_index in 0..current_neuron.weights.len() {
+
+                        let weight = current_neuron.weights[weight_index];
+                        let output = inputs[weight_index];
+                        
+                        let error_der = current_neuron.input_der * output;
+                        current_neuron.new_weights[weight_index] = weight - self.learning_rate * error_der;
+                    }
+                }
+
+                current_neuron.bias -= self.learning_rate * current_neuron.input_der;
+
+            }
+
+            if index > 0 {
+
+                let previous_layer = &self.layers[index - 1];
+
+                for previous_neuron_index in 0..previous_layer.len() {
+                    
+                    let mut previous_neuron = previous_layer[previous_neuron_index].borrow_mut();
+
+                    let mut output_der = 0.0;
+                    for current_neuron in current_layer {
+                        output_der += current_neuron.borrow().weights[previous_neuron_index] * current_neuron.borrow().input_der;
+                    }
+                    previous_neuron.output_der = output_der;
                 }
             }
+
         }
 
         self.swap_weights();
 
         total_error
+
     }
+}
+
+#[test]
+fn test() {
+
+    let inputs = vec!(0.2, 0.3);
+    let outputs = vec!(0.0, 1.0, 0.0);
+
+    let mut nn = NeuralNetwork::with_layers(vec!(
+        vec!(
+            RefCell::new(Neuron::with_weights(vec!(0.2, 0.25), 0.1)),
+            RefCell::new(Neuron::with_weights(vec!(0.3, 0.35), 0.1)),
+            RefCell::new(Neuron::with_weights(vec!(-0.3, -0.35), 0.1)),
+            RefCell::new(Neuron::with_weights(vec!(-0.3, -0.35), 0.1)),
+        ),
+        vec!(
+            RefCell::new(Neuron::with_weights(vec!(0.4, -0.45, 0.5, -0.55), 0.1)),
+            RefCell::new(Neuron::with_weights(vec!(0.5, -0.55, 0.6, -0.65), 0.1)),
+            RefCell::new(Neuron::with_weights(vec!(0.6, -0.65, 0.4, -0.45), 0.1)),
+        ),
+    ), 0.5);
+    
+    nn.train(&inputs, &outputs);
+    nn.feed_forward(&vec!(0.1, 0.4));
+
+    let mut network_outputs = nn.get_outputs();
+    assert!(network_outputs == vec!(0.4763176074370886, 0.5411613536686533, 0.47558085220979524));
+
+    nn.learning_rate = 0.4;
+    nn.train(&inputs, &outputs);
+    nn.feed_forward(&vec!(0.1, 0.4));
+    network_outputs = nn.get_outputs();
+    assert!(network_outputs == vec!(0.45083786140605075, 0.5639480600777952, 0.45002933641579157));
+
+    nn.learning_rate = 0.3;
+    nn.train(&inputs, &outputs);
+    nn.feed_forward(&vec!(0.1, 0.4));
+    network_outputs = nn.get_outputs();
+    assert!(network_outputs == vec!(0.43299515834212265, 0.5799061048726579, 0.43214702784312253));
+
 }
