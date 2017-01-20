@@ -202,9 +202,9 @@ impl NeuralNetwork {
 
             let current_layer = &self.layers[index];
 
-            for current_index in 0..current_layer.len() {
+            for current_neuron in current_layer {
 
-                let mut current_neuron = current_layer[current_index].borrow_mut();
+                let mut current_neuron = current_neuron.borrow_mut();
                 current_neuron.input_der = current_neuron.output_der * derivative(current_neuron.total_input);;
 
                 if index >= 1 {
