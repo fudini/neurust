@@ -135,7 +135,7 @@ pub fn outputs_to_digit(outputs: &Vec<f64>) -> Option<usize> {
 
 pub fn render_digit(pixels: &Vec<f64>) {
 
-    let greys = ['`', '.', ':', '-', '+', '*', '#', '@', '@'];
+    let greys = ['·', '.', ':', '-', '+', '*', '#', '@', '@'];
     let size = (pixels.len() as f64).sqrt() as usize;
 
     for y in 0..size {
