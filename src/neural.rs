@@ -22,6 +22,7 @@ fn error_derivative(guess: f64, actual: f64) -> f64 {
     guess - actual
 }
 
+
 #[derive(Debug)]
 pub struct Neuron {
     weights: Vec<f64>,
@@ -166,8 +167,8 @@ impl NeuralNetwork {
 
     pub fn swap_weights(&self) {
 
-        for layer_index in 0..self.layers.len() {
-            for neuron in &self.layers[layer_index] {
+        for layer in self.layers.as_ref() {
+            for neuron in layer {
                 neuron.borrow_mut().swap_weights();
             }
         }
