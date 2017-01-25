@@ -4,15 +4,8 @@ use std::f64::consts::E;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::mem;
-use functions::*;
-
-fn error(guess: f64, actual: f64) -> f64 {
-    (guess - actual).powf(2.0) / 2.0
-}
-
-fn error_derivative(guess: f64, actual: f64) -> f64 {
-    guess - actual
-}
+use functions::activations::*;
+use functions::errors::*;
 
 #[derive(Debug)]
 pub struct Neuron {
@@ -95,12 +88,18 @@ impl Neuron {
 pub struct NeuralNetwork {
     layers: Rc<Vec<Vec<RefCell<Neuron>>>>,
     activation_fn: ActivationFn,
+    error_fn: ErrorFn,
     pub learning_rate: f64,
 }
 
 impl NeuralNetwork {
 
-    pub fn new(config: Vec<u16>, learning_rate: f64, activation_fn: ActivationFn) -> NeuralNetwork {
+    pub fn new(
+            config: Vec<u16>,
+            learning_rate: f64,
+            activation_fn: ActivationFn,
+            error_fn: ErrorFn,
+        ) -> NeuralNetwork {
 
         if config.len() < 3 {
             panic!("Your network should have at least 1 input, hidden and output layers.");
@@ -119,6 +118,7 @@ impl NeuralNetwork {
             layers: Rc::new(layers),
             learning_rate: learning_rate,
             activation_fn: activation_fn,
+            error_fn: error_fn,
         }
     }
 
@@ -126,6 +126,7 @@ impl NeuralNetwork {
             layers: Vec<Vec<RefCell<Neuron>>>,
             learning_rate: f64,
             activation_fn: ActivationFn,
+            error_fn: ErrorFn,
         ) -> NeuralNetwork {
 
         if layers.len() < 2 {
@@ -136,6 +137,7 @@ impl NeuralNetwork {
             layers: Rc::new(layers),
             learning_rate: learning_rate,
             activation_fn: activation_fn,
+            error_fn: error_fn,
         }
     }
 
@@ -192,8 +194,11 @@ impl NeuralNetwork {
         for output_index in 0..last_layer.len() {
 
             let mut output_neuron = network_outputs[output_index].borrow_mut();
-            total_error += error(output_neuron.output, outputs[output_index]);           
-            output_neuron.output_der = error_derivative(output_neuron.output, outputs[output_index]);
+            total_error += self.error_fn.0(output_neuron.output, outputs[output_index]);           
+            output_neuron.output_der = self.error_fn.1(
+                output_neuron.output,
+                outputs[output_index]
+            );
         }
 
         for index in (0..self.layers.len()).rev() {
@@ -275,7 +280,7 @@ fn test() {
             RefCell::new(Neuron::with_weights(vec!(0.5, -0.55, 0.6, -0.65), 0.1)),
             RefCell::new(Neuron::with_weights(vec!(0.6, -0.65, 0.4, -0.45), 0.1)),
         ),
-    ), 0.5, SIGMOID);
+    ), 0.5, SIGMOID, SQUARE);
     
     nn.train(&inputs, &outputs);
     nn.feed_forward(&vec!(0.1, 0.4));

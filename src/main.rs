@@ -9,7 +9,8 @@ mod functions;
 use neural::{ NeuralNetwork, Neuron };
 use time::now;
 use mnist::*;
-use functions::SIGMOID;
+use functions::activations::SIGMOID;
+use functions::errors::SQUARE;
 
 fn main() {
 
@@ -29,7 +30,7 @@ fn run_mnist() {
 
     let inputs_num = training_set.width * training_set.height;
 
-    let mut nn = NeuralNetwork::new(vec!(inputs_num as u16, 200, 60, 10), 0.5, SIGMOID);
+    let mut nn = NeuralNetwork::new(vec!(inputs_num as u16, 200, 60, 10), 0.5, SIGMOID, SQUARE);
 
     let mut outputs: Vec<f64> = (0..10).map(|_| 0.0).collect();
     let mut error = 0.0;
@@ -91,7 +92,7 @@ fn run_xor () {
     let input3 = (vec!(1.0, 0.0), vec!(1.0));
     let input4 = (vec!(0.0, 0.0), vec!(0.0));
 
-    let mut nn = NeuralNetwork::new(vec!(2, 5, 1), 0.5, SIGMOID);
+    let mut nn = NeuralNetwork::new(vec!(2, 5, 1), 0.5, SIGMOID, SQUARE);
 
     let mut error = 0.0;
 
