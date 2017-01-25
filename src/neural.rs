@@ -4,24 +4,15 @@ use std::f64::consts::E;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::mem;
-
-fn activate(x: f64) -> f64 {
-    1.0 / (1.0 + E.powf(-x))
-}
+use functions::*;
 
 fn error(guess: f64, actual: f64) -> f64 {
     (guess - actual).powf(2.0) / 2.0
 }
 
-fn derivative(o: f64) -> f64 {
-    let o = activate(o);
-    o * (1.0 - o)
-}
-
 fn error_derivative(guess: f64, actual: f64) -> f64 {
     guess - actual
 }
-
 
 #[derive(Debug)]
 pub struct Neuron {
@@ -81,7 +72,7 @@ impl Neuron {
         }
     }
 
-    pub fn feed_forward<T>(&mut self, inputs: &Vec<T>)
+    pub fn feed_forward<T>(&mut self, inputs: &Vec<T>, activation_fn: ActivationFn)
         where T: NeuralValue {
 
         let total_input: f64 = self.weights
@@ -91,7 +82,7 @@ impl Neuron {
             .sum();
             
         self.total_input = total_input + self.bias;
-        self.output = activate(self.total_input);
+        self.output = activation_fn.0(self.total_input);
     }
 
     pub fn swap_weights(&mut self) {
@@ -103,12 +94,13 @@ impl Neuron {
 #[derive(Debug)]
 pub struct NeuralNetwork {
     layers: Rc<Vec<Vec<RefCell<Neuron>>>>,
+    activation_fn: ActivationFn,
     pub learning_rate: f64,
 }
 
 impl NeuralNetwork {
 
-    pub fn new(config: Vec<u16>, learning_rate: f64) -> NeuralNetwork {
+    pub fn new(config: Vec<u16>, learning_rate: f64, activation_fn: ActivationFn) -> NeuralNetwork {
 
         if config.len() < 3 {
             panic!("Your network should have at least 1 input, hidden and output layers.");
@@ -125,11 +117,16 @@ impl NeuralNetwork {
 
         NeuralNetwork {
             layers: Rc::new(layers),
-            learning_rate: learning_rate
+            learning_rate: learning_rate,
+            activation_fn: activation_fn,
         }
     }
 
-    pub fn with_layers(layers: Vec<Vec<RefCell<Neuron>>>, learning_rate: f64) -> NeuralNetwork {
+    pub fn with_layers(
+            layers: Vec<Vec<RefCell<Neuron>>>,
+            learning_rate: f64,
+            activation_fn: ActivationFn,
+        ) -> NeuralNetwork {
 
         if layers.len() < 2 {
             panic!("Your network should have at least 1 input, hidden and output layers.");
@@ -137,7 +134,8 @@ impl NeuralNetwork {
 
         NeuralNetwork {
             layers: Rc::new(layers),
-            learning_rate: learning_rate
+            learning_rate: learning_rate,
+            activation_fn: activation_fn,
         }
     }
 
@@ -148,7 +146,7 @@ impl NeuralNetwork {
 
         // feed first layer from inputs
         for neuron in &layers[0] {
-            neuron.borrow_mut().feed_forward(&inputs);
+            neuron.borrow_mut().feed_forward(&inputs, self.activation_fn);
         }
 
         // feed each layer from activations in the previous layer
@@ -158,7 +156,7 @@ impl NeuralNetwork {
             let current_layer = &layers[index];
 
             for neuron in current_layer {
-                neuron.borrow_mut().feed_forward(previous_layer);
+                neuron.borrow_mut().feed_forward(previous_layer, self.activation_fn);
             }
         }
 
@@ -205,7 +203,8 @@ impl NeuralNetwork {
             for current_neuron in current_layer {
 
                 let mut current_neuron = current_neuron.borrow_mut();
-                current_neuron.input_der = current_neuron.output_der * derivative(current_neuron.total_input);;
+                current_neuron.input_der = current_neuron.output_der
+                    * self.activation_fn.1(current_neuron.total_input);
 
                 if index >= 1 {
 
@@ -276,7 +275,7 @@ fn test() {
             RefCell::new(Neuron::with_weights(vec!(0.5, -0.55, 0.6, -0.65), 0.1)),
             RefCell::new(Neuron::with_weights(vec!(0.6, -0.65, 0.4, -0.45), 0.1)),
         ),
-    ), 0.5);
+    ), 0.5, SIGMOID);
     
     nn.train(&inputs, &outputs);
     nn.feed_forward(&vec!(0.1, 0.4));
