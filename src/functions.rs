@@ -13,7 +13,17 @@ pub mod activations {
         o * (1.0 - o)
     }
 
+    fn tanh_activation(x: f64) -> f64 {
+        x.tanh()
+    }
+
+    fn tanh_derivative(o: f64) -> f64 {
+        let o = tanh_activation(o);
+        1.0 - o * o
+    }
+
     pub static SIGMOID: ActivationFn = (sigmoid_activation, sigmoid_derivative);
+    pub static TANH: ActivationFn = (tanh_activation, tanh_derivative);
 }
 
 pub mod errors {
