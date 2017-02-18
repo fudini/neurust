@@ -127,3 +127,4 @@ fn run_xor () {
     nn.feed_forward(&input4.0);
     println!("0 0 => {:#?}", nn.get_outputs());
 }
+

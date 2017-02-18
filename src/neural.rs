@@ -1,6 +1,5 @@
 use rand::Rng;
 use rand;
-use std::f64::consts::E;
 use std::rc::Rc;
 use std::cell::RefCell;
 use std::mem;
@@ -32,6 +31,10 @@ impl NeuralValue for f64 {
     fn get_value(&self) -> f64 {
         *self
     }
+}
+
+pub struct Data {
+    layers: Vec<Vec<(Vec<f64>, f64)>>,
 }
 
 impl Neuron {
@@ -171,6 +174,42 @@ impl NeuralNetwork {
             for neuron in layer {
                 neuron.borrow_mut().swap_weights();
             }
+        }
+    }
+
+    pub fn import(data: Data) -> NeuralNetwork {
+    
+        let layers = data.layers.into_iter()
+            .map(|layer| {
+                layer.into_iter()
+                    .map(|neuron_data| {
+                        let (weights, bias): (Vec<f64>, f64) = neuron_data;
+                        RefCell::new(Neuron::with_weights(weights, bias))
+                    })
+                    .collect()
+            })
+            .collect();
+
+        // TODO: store/restors activation function
+        NeuralNetwork::with_layers(layers, 0.5, SIGMOID, SQUARE)
+
+    }
+
+    pub fn export(&self) -> Data { 
+
+        let layers = self.layers.iter()
+            .map(|layer| {
+                layer.iter()
+                    .map(|neuron| {
+                        let neuron = neuron.borrow();
+                        (neuron.weights.clone(), neuron.bias)
+                    })
+                    .collect()
+            })
+            .collect();
+
+        Data {
+            layers: layers
         }
     }
 
